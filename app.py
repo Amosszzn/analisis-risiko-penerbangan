@@ -6,6 +6,21 @@ import os
 import plotly.express as px
 import plotly.graph_objects as go
 
+# Config Halaman
+st.set_page_config(
+    page_title="Prediksi Risiko Penerbangan",
+    page_icon="✈️",
+    layout="wide"
+)
+
+# ==========================================
+# NAVIGASI SIDEBAR (DEFINISI VARIABEL MENU)
+# ==========================================
+st.sidebar.title("Navigasi Sistem")
+menu = st.sidebar.radio(
+    "Pilih Halaman:",
+    ["Dashboard & Statistik", "Prediksi Tingkat Keparahan", "Informasi Model & Dataset"]
+)
 # ==========================================
 # MENU 1: DASHBOARD & STATISTIK
 # ==========================================
