@@ -46,11 +46,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. LOAD MODEL MACHINE LEARNING (.PKL)
+# 2. LOAD MODEL MACHINE LEARNING & ENCODER (.PKL)
 # ==========================================
 @st.cache_resource
-def load_all_models():
+def load_all_artifacts():
     models_dict = {'XGBoost': None, 'Random Forest': None, 'SVM': None}
+    encoder = None
     
     # Load XGBoost
     if os.path.exists("model_xgboost.pkl"):
@@ -72,13 +73,20 @@ def load_all_models():
             with open("model_svm.pkl", "rb") as f:
                 models_dict['SVM'] = pickle.load(f)
         except Exception: pass
-        
-    return models_dict
 
-available_models = load_all_models()
+    # Load OneHotEncoder
+    if os.path.exists("encoder.pkl"):
+        try:
+            with open("encoder.pkl", "rb") as f:
+                encoder = pickle.load(f)
+        except Exception: pass
+        
+    return models_dict, encoder
+
+available_models, encoder = load_all_artifacts()
 
 # ==========================================
-# 3. SIDEBAR NAVIGASI (HANYA DEFINISI 1 KALI)
+# 3. SIDEBAR NAVIGASI
 # ==========================================
 st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/f/f1/Gunadarma_University_Logo.png", width=100)
 st.sidebar.title("Navigasi Sistem")
@@ -109,7 +117,7 @@ if menu == "Dashboard & Statistik":
     # Metric Cards Ringkasan
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown('<div class="metric-box"><h4>Total Insiden Historis</h4><p style="font-size: 24px; font-weight: bold; color: #1E3A8A; margin:0;">80,000+ Records</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="metric-box"><h4>Total Insiden Historis</h4><p style="font-size: 24px; font-weight: bold; color: #1E3A8A; margin:0;">150,000+ Records</p></div>', unsafe_allow_html=True)
     with col2:
         st.markdown('<div class="metric-box"><h4>Fitur Prediktor Utama</h4><p style="font-size: 24px; font-weight: bold; color: #10B981; margin:0;">5 Dimensi Kritis</p></div>', unsafe_allow_html=True)
     with col3:
@@ -257,12 +265,13 @@ elif menu == "Prediksi Tingkat Keparahan":
     
     if st.button("🚀 Hitung Estimasi Risiko / Prediksi Keparahan", use_container_width=True):
         
+        # DataFrame Input disesuaikan NAMA KOLOM SAMA PERSIS DENGAN NOTEBOOK
         raw_input = pd.DataFrame([{
-            "Weather.Condition": weather,
-            "Broad.phase.of.flight": phase,
-            "Aircraft.damage": damage,
-            "Number.of.Engines": num_engines,
-            "Engine.Type": engine_type
+            "Weather Condition": weather,
+            "Broad Phase of Flight": phase,
+            "Aircraft Damage": damage,
+            "Number of Engines": int(num_engines),
+            "Engine Type": engine_type
         }])
         
         st.write("**Data Input Pengguna:**")
@@ -270,65 +279,37 @@ elif menu == "Prediksi Tingkat Keparahan":
         st.write("") 
         
         active_model = available_models[selected_model_name]
-        result = "Unknown"
         
-        # JIKA FILE MODEL PKL TIDAK ADA (MODE SIMULASI)
-        if active_model is None:
-            st.warning(f"⚠️ Berkas `model_{selected_model_name.lower().replace(' ', '_')}.pkl` tidak ditemukan. Menjalankan mesin simulasi akademis:")
-            
-            model_factor = 0.0 if selected_model_name == "XGBoost" else (1.5 if selected_model_name == "Random Forest" else 3.2)
-            
-            if damage == "Destroyed" or (weather == "IMC" and phase in ["LANDING", "APPROACH"]):
-                result = "Fatal"
-                proba = 89.21 - model_factor
-                st.error(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** (Confidence Score: {proba:.2f}%)")
-            else:
-                result = "Non-Fatal"
-                proba = 94.15 - model_factor
-                st.success(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** (Confidence Score: {proba:.2f}%)")
-                
-        # JIKA FILE MODEL PKL ADA (REAL ML MODEL)
+        # PENGECEKAN KETERSEDIAAN MODEL & ENCODER
+        if active_model is None or encoder is None:
+            st.error("⚠️ Model `.pkl` atau `encoder.pkl` tidak ditemukan! Pastikan file berada di direktori aplikasi.")
         else:
             try:
-                if hasattr(active_model, 'feature_names_in_'):
-                    model_features = active_model.feature_names_in_
-                    input_encoded = pd.DataFrame(0, index=[0], columns=model_features)
-                    
-                    if "Number.of.Engines" in input_encoded.columns:
-                        input_encoded["Number.of.Engines"] = num_engines
-                    if "Number of Engines" in input_encoded.columns:
-                        input_encoded["Number of Engines"] = num_engines
-                        
-                    col_weather = f"Weather Condition_{weather}"
-                    col_phase = f"Broad Phase of Flight_{phase}"
-                    col_damage = f"Aircraft Damage_{damage}"
-                    col_engine = f"Engine Type_{engine_type}"
-                    
-                    for col in [col_weather, col_phase, col_damage, col_engine]:
-                        if col in input_encoded.columns:
-                            input_encoded[col] = 1
-                    
-                    prediction = active_model.predict(input_encoded)
-                    target_labels = {0: "Incident", 1: "Non-Fatal", 2: "Fatal"}
-                    result = target_labels.get(prediction[0], "Unknown")
-                    
-                    if hasattr(active_model, 'predict_proba'):
-                        probabilities = active_model.predict_proba(input_encoded)
-                        max_prob = np.max(probabilities[0]) * 100
-                        prob_text = f"(Probabilitas: {max_prob:.2f}%)"
-                    else:
-                        prob_text = ""
-                    
-                    if result == "Fatal":
-                        st.error(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
-                    elif result == "Non-Fatal":
-                        st.success(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
-                    else:
-                        st.info(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
+                # Transformasi input menggunakan OneHotEncoder otomatis
+                X_input = encoder.transform(raw_input)
+                
+                # Melakukan Prediksi
+                prediction = active_model.predict(X_input)
+                target_labels = {0: "Incident", 1: "Non-Fatal", 2: "Fatal"}
+                result = target_labels.get(prediction[0], "Unknown")
+                
+                # Hitung Probabilitas jika didukung
+                prob_text = ""
+                if hasattr(active_model, 'predict_proba'):
+                    probabilities = active_model.predict_proba(X_input)
+                    max_prob = np.max(probabilities[0]) * 100
+                    prob_text = f"(Probabilitas: {max_prob:.2f}%)"
+                
+                # TAMPILKAN HASIL PREDIKSI
+                if result == "Fatal":
+                    st.error(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
+                elif result == "Non-Fatal":
+                    st.success(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
                 else:
-                    st.warning("⚠️ Struktur kolom model pkl tidak terbaca lengkap.")
+                    st.info(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
+
             except Exception as e:
-                st.error(f"❌ Gagal memproses ke model riil: {str(e)}")
+                st.error(f"❌ Terjadi kesalahan saat prediksi: {str(e)}")
 
         # EXPLAINABLE AI SECTION
         with st.expander("🔍 **Lihat Penjelasan & Analisis Faktor Risiko (Dinamis)**", expanded=True):
@@ -379,15 +360,6 @@ elif menu == "Prediksi Tingkat Keparahan":
                 st.markdown("- 2️⃣ **Jumlah Mesin (2 Unit):** Pesawat memiliki redundansi daya dasar (*one-engine inoperative capability*), memungkinkan penerbangan berlanjut terbatas jika satu mesin mati.")
             else:
                 st.markdown(f"- 🔢 **Jumlah Mesin ({num_engines} Unit):** Tingkat redundansi sistem propulsi sangat tinggi, meminimalisir risiko kehilangan daya total di udara.")
-            
-            st.write("---")
-            
-            if result == "Fatal":
-                st.error("⚠️ **Rangkuman Evaluasi Model:** Kombinasi faktor terdeteksi memiliki tingkat risiko keselamatan kritis (didominasi oleh tingkat kerusakan fisik pesawat dan/atau kondisi cuaca terobstruksi).")
-            elif result == "Non-Fatal":
-                st.success("📌 **Rangkuman Evaluasi Model:** Kombinasi faktor terdeteksi didominasi oleh kondisi yang mendukung kelangsungan hidup (*survivability*), sehingga tingkat risiko cedera fatal dapat ditekan.")
-            else:
-                st.info("ℹ️ **Rangkuman Evaluasi Model:** Hasil prediksi menunjukkan klasifikasi insiden ringan tanpa korban jiwa fatal.")
 
 # ==========================================
 # MENU 3: INFORMASI MODEL & DATASET
@@ -408,9 +380,9 @@ elif menu == "Informasi Model & Dataset":
     with tab2:
         st.markdown("""
         **5 Atribut Prediktor Krusial (Hasil Seleksi Fitur):**
-        1. `Weather.Condition`
-        2. `Broad.phase.of.flight`
-        3. `Aircraft.damage`
-        4. `Number.of.Engines`
-        5. `Engine.Type`
+        1. `Weather Condition`
+        2. `Broad Phase of Flight`
+        3. `Aircraft Damage`
+        4. `Number of Engines`
+        5. `Engine Type`
         """)
