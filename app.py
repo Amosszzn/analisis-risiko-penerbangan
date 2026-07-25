@@ -3,43 +3,126 @@ import pandas as pd
 import numpy as np
 import pickle
 import os
+import plotly.express as px
+import plotly.graph_objects as go
 
 # ==========================================
-# 1. KONFIGURASI HALAMAN UTAMA (FRONTEND)
+# MENU 1: DASHBOARD & STATISTIK
 # ==========================================
-st.set_page_config(
-    page_title="Sistem Analisis Risiko Penerbangan",
-    page_icon="✈️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+if menu == "Dashboard & Statistik":
+    st.markdown('<div class="main-title">✈️ Sistem Analisis & Prediksi Risiko Penerbangan</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Universitas Gunadarma - Fakultas Teknologi Industri</div>', unsafe_allow_html=True)
+    
+    # 1. METRIC CARDS RINGKASAN
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown('<div class="metric-box"><h4>Total Insiden Historis</h4><p style="font-size: 24px; font-weight: bold; color: #1E3A8A;">80,000+ Records</p></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="metric-box"><h4>Fitur Prediktor Utama</h4><p style="font-size: 24px; font-weight: bold; color: #10B981;">5 Dimensi Kritis</p></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="metric-box"><h4>Algoritma Komparasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B;">XGBoost vs RF vs SVM</p></div>', unsafe_allow_html=True)
 
-# Custom CSS untuk mempercantik tampilan akademis
-st.markdown("""
-    <style>
-    .main-title {
-        font-size: 38px;
-        font-weight: bold;
-        color: #1E3A8A;
-        text-align: center;
-        margin-bottom: 5px;
-    }
-    .subtitle {
-        font-size: 18px;
-        color: #4B5563;
-        text-align: center;
-        margin-bottom: 30px;
-    }
-    .metric-box {
-        background-color: #F3F4F6;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 5px solid #1E3A8A;
-        margin-bottom: 10px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+    st.write("")
+    st.info("""
+        **Deskripsi Sistem:**
+        Sistem ini dibangun untuk memodelkan risiko dan memprediksi tingkat keparahan (*Severity*) insiden penerbangan berdasarkan data historis dari *National Transportation Safety Board (NTSB)* menggunakan komparasi 3 algoritma *Machine Learning*.
+    """)
+    
+    st.write("---")
+    st.subheader("📊 Visualisasi & Eksplorasi Data Interaktif")
 
+    # 2. VISUALISASI DUA KOLOM INTERAKTIF
+    chart_col1, chart_col2 = st.columns(2)
+
+    with chart_col1:
+        st.markdown("##### 🍩 Distribusi Tingkat Keparahan (Overall Severity)")
+        # Dummy data historis NTSB yang representatif
+        severity_data = pd.DataFrame({
+            'Tingkat Keparahan': ['Non-Fatal', 'Fatal', 'Incident'],
+            'Jumlah Insiden': [65000, 12000, 3000]
+        })
+        fig_donut = px.pie(
+            severity_data, 
+            values='Jumlah Insiden', 
+            names='Tingkat Keparahan',
+            hole=0.5,
+            color='Tingkat Keparahan',
+            color_discrete_map={'Non-Fatal': '#10B981', 'Fatal': '#EF4444', 'Incident': '#3B82F6'}
+        )
+        fig_donut.update_layout(margin=dict(t=20, b=20, l=10, r=10), height=300)
+        st.plotly_chart(fig_donut, use_container_width=True)
+
+    with chart_col2:
+        st.markdown("##### ⚡ Komparasi Kinerja Algoritma Machine Learning")
+        model_metrics = pd.DataFrame({
+            'Model': ['XGBoost', 'Random Forest', 'SVM'],
+            'Akurasi (%)': [85.60, 85.57, 85.63],
+            'Weighted F1-Score': [84.0, 84.0, 84.0]
+        })
+        fig_bar = px.bar(
+            model_metrics, 
+            x='Model', 
+            y='Akurasi (%)', 
+            text='Akurasi (%)',
+            color='Model',
+            color_discrete_sequence=['#1E3A8A', '#059669', '#D97706']
+        )
+        fig_bar.update_yaxes(range=[80, 90])
+        fig_bar.update_layout(margin=dict(t=20, b=20, l=10, r=10), height=300, showlegend=False)
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # 3. INTERACTIVE FILTER & DRILL-DOWN SECTION
+    st.write("---")
+    st.subheader("🔍 Profil Risiko Berdasarkan Fase Penerbangan")
+    
+    selected_phase = st.selectbox(
+        "Pilih Fase Penerbangan untuk Melakukan Filtering Data:",
+        ["TAKEOFF", "LANDING", "APPROACH", "CRUISE", "CLIMB", "MANEUVERING"]
+    )
+
+    # Logika dummy responsif untuk grafik fase
+    phase_data_map = {
+        "TAKEOFF": {"Non-Fatal": 12400, "Fatal": 2100, "Incident": 450},
+        "LANDING": {"Non-Fatal": 18200, "Fatal": 950, "Incident": 800},
+        "APPROACH": {"Non-Fatal": 6100, "Fatal": 2300, "Incident": 200},
+        "CRUISE": {"Non-Fatal": 8300, "Fatal": 3100, "Incident": 300},
+        "CLIMB": {"Non-Fatal": 4200, "Fatal": 1100, "Incident": 150},
+        "MANEUVERING": {"Non-Fatal": 2800, "Fatal": 1900, "Incident": 90}
+    }
+
+    current_phase_data = phase_data_map.get(selected_phase, {"Non-Fatal": 5000, "Fatal": 1000, "Incident": 200})
+    df_phase = pd.DataFrame({
+        'Kategori': list(current_phase_data.keys()),
+        'Jumlah Kasus': list(current_phase_data.values())
+    })
+
+    fig_phase = px.bar(
+        df_phase, 
+        x='Jumlah Kasus', 
+        y='Kategori', 
+        orientation='h',
+        color='Kategori',
+        text='Jumlah Kasus',
+        color_discrete_map={'Non-Fatal': '#10B981', 'Fatal': '#EF4444', 'Incident': '#3B82F6'}
+    )
+    fig_phase.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=10), showlegend=False)
+    
+    col_p1, col_p2 = st.columns([2, 1])
+    with col_p1:
+        st.plotly_chart(fig_phase, use_container_width=True)
+    with col_p2:
+        st.write("")
+        st.markdown(f"**📌 Highlight Fase {selected_phase}:**")
+        total_cases = sum(current_phase_data.values())
+        fatal_rate = (current_phase_data['Fatal'] / total_cases) * 100
+        
+        st.metric("Total Insiden Tercatat", f"{total_cases:,}")
+        st.metric("Rasio Fatalitas (Fatality Rate)", f"{fatal_rate:.1f}%")
+        
+        if fatal_rate > 20:
+            st.error("⚠️ Fase ini tergolong berisiko tinggi (*High Risk Phase*).")
+        else:
+            st.success("✅ Fase ini memiliki *survival rate* relatif tinggi.")
 # ==========================================
 # 2. STRUKTUR NAVIGASI & LOAD 3 MODEL (.PKL)
 # ==========================================
