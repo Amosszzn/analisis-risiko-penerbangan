@@ -6,21 +6,99 @@ import os
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Config Halaman
+# ==========================================
+# 1. KONFIGURASI HALAMAN & CUSTOM CSS
+# ==========================================
 st.set_page_config(
-    page_title="Prediksi Risiko Penerbangan",
+    page_title="Sistem Analisis Risiko Penerbangan",
     page_icon="✈️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
+# Injeksi CSS Kustom agar styling metric-box & title berfungsi
+st.markdown("""
+    <style>
+    .main-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #1E3A8A;
+        margin-bottom: 5px;
+    }
+    .subtitle {
+        font-size: 16px;
+        color: #4B5563;
+        margin-bottom: 25px;
+    }
+    .metric-box {
+        background-color: #F3F4F6;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 5px solid #1E3A8A;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+    }
+    .metric-box h4 {
+        margin: 0;
+        font-size: 14px;
+        color: #6B7280;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # ==========================================
-# NAVIGASI SIDEBAR (DEFINISI VARIABEL MENU)
+# 2. LOAD MODEL MACHINE LEARNING (.PKL)
 # ==========================================
+@st.cache_resource
+def load_all_models():
+    models_dict = {'XGBoost': None, 'Random Forest': None, 'SVM': None}
+    
+    # Load XGBoost
+    if os.path.exists("model_xgboost.pkl"):
+        try:
+            with open("model_xgboost.pkl", "rb") as f:
+                models_dict['XGBoost'] = pickle.load(f)
+        except Exception: pass
+        
+    # Load Random Forest
+    if os.path.exists("model_random_forest.pkl"):
+        try:
+            with open("model_random_forest.pkl", "rb") as f:
+                models_dict['Random Forest'] = pickle.load(f)
+        except Exception: pass
+        
+    # Load SVM
+    if os.path.exists("model_svm.pkl"):
+        try:
+            with open("model_svm.pkl", "rb") as f:
+                models_dict['SVM'] = pickle.load(f)
+        except Exception: pass
+        
+    return models_dict
+
+available_models = load_all_models()
+
+# ==========================================
+# 3. SIDEBAR NAVIGASI (HANYA DEFINISI 1 KALI)
+# ==========================================
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/f/f1/Gunadarma_University_Logo.png", width=100)
 st.sidebar.title("Navigasi Sistem")
 menu = st.sidebar.radio(
     "Pilih Halaman:",
-    ["Dashboard & Statistik", "Prediksi Tingkat Keparahan", "Informasi Model & Dataset"]
+    ["Dashboard & Statistik", "Prediksi Tingkat Keparahan", "Informasi Model & Dataset"],
+    key="main_navigation_menu"
 )
+
+# Pengaturan Pilihan Model khusus di Menu Prediksi
+selected_model_name = "XGBoost" # Default
+if menu == "Prediksi Tingkat Keparahan":
+    st.sidebar.write("---")
+    st.sidebar.subheader("🧠 Pengaturan Otak AI")
+    selected_model_name = st.sidebar.selectbox(
+        "Pilih Model Klasifikasi:",
+        ["XGBoost", "Random Forest", "SVM"]
+    )
+    st.sidebar.info(f"Sistem dikonfigurasi menggunakan: **{selected_model_name}**.")
+
 # ==========================================
 # MENU 1: DASHBOARD & STATISTIK
 # ==========================================
@@ -28,14 +106,14 @@ if menu == "Dashboard & Statistik":
     st.markdown('<div class="main-title">✈️ Sistem Analisis & Prediksi Risiko Penerbangan</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">Universitas Gunadarma - Fakultas Teknologi Industri</div>', unsafe_allow_html=True)
     
-    # 1. METRIC CARDS RINGKASAN
+    # Metric Cards Ringkasan
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown('<div class="metric-box"><h4>Total Insiden Historis</h4><p style="font-size: 24px; font-weight: bold; color: #1E3A8A;">80,000+ Records</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="metric-box"><h4>Total Insiden Historis</h4><p style="font-size: 24px; font-weight: bold; color: #1E3A8A; margin:0;">80,000+ Records</p></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown('<div class="metric-box"><h4>Fitur Prediktor Utama</h4><p style="font-size: 24px; font-weight: bold; color: #10B981;">5 Dimensi Kritis</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="metric-box"><h4>Fitur Prediktor Utama</h4><p style="font-size: 24px; font-weight: bold; color: #10B981; margin:0;">5 Dimensi Kritis</p></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown('<div class="metric-box"><h4>Algoritma Komparasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B;">XGBoost vs RF vs SVM</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="metric-box"><h4>Algoritma Komparasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B; margin:0;">XGBoost vs RF vs SVM</p></div>', unsafe_allow_html=True)
 
     st.write("")
     st.info("""
@@ -46,12 +124,11 @@ if menu == "Dashboard & Statistik":
     st.write("---")
     st.subheader("📊 Visualisasi & Eksplorasi Data Interaktif")
 
-    # 2. VISUALISASI DUA KOLOM INTERAKTIF
+    # Visualisasi Dua Kolom Interaktif (Plotly)
     chart_col1, chart_col2 = st.columns(2)
 
     with chart_col1:
         st.markdown("##### 🍩 Distribusi Tingkat Keparahan (Overall Severity)")
-        # Dummy data historis NTSB yang representatif
         severity_data = pd.DataFrame({
             'Tingkat Keparahan': ['Non-Fatal', 'Fatal', 'Incident'],
             'Jumlah Insiden': [65000, 12000, 3000]
@@ -71,8 +148,7 @@ if menu == "Dashboard & Statistik":
         st.markdown("##### ⚡ Komparasi Kinerja Algoritma Machine Learning")
         model_metrics = pd.DataFrame({
             'Model': ['XGBoost', 'Random Forest', 'SVM'],
-            'Akurasi (%)': [85.60, 85.57, 85.63],
-            'Weighted F1-Score': [84.0, 84.0, 84.0]
+            'Akurasi (%)': [85.60, 85.57, 85.63]
         })
         fig_bar = px.bar(
             model_metrics, 
@@ -86,7 +162,7 @@ if menu == "Dashboard & Statistik":
         fig_bar.update_layout(margin=dict(t=20, b=20, l=10, r=10), height=300, showlegend=False)
         st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 3. INTERACTIVE FILTER & DRILL-DOWN SECTION
+    # Interactive Filter & Drill-Down Section
     st.write("---")
     st.subheader("🔍 Profil Risiko Berdasarkan Fase Penerbangan")
     
@@ -95,7 +171,6 @@ if menu == "Dashboard & Statistik":
         ["TAKEOFF", "LANDING", "APPROACH", "CRUISE", "CLIMB", "MANEUVERING"]
     )
 
-    # Logika dummy responsif untuk grafik fase
     phase_data_map = {
         "TAKEOFF": {"Non-Fatal": 12400, "Fatal": 2100, "Incident": 450},
         "LANDING": {"Non-Fatal": 18200, "Fatal": 950, "Incident": 800},
@@ -138,79 +213,6 @@ if menu == "Dashboard & Statistik":
             st.error("⚠️ Fase ini tergolong berisiko tinggi (*High Risk Phase*).")
         else:
             st.success("✅ Fase ini memiliki *survival rate* relatif tinggi.")
-# ==========================================
-# 2. STRUKTUR NAVIGASI & LOAD 3 MODEL (.PKL)
-# ==========================================
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/f/f1/Gunadarma_University_Logo.png", width=100)
-st.sidebar.title("Navigasi Sistem")
-menu = st.sidebar.radio(
-    "Pilih Halaman:",
-    ["Dashboard & Statistik", "Prediksi Tingkat Keparahan", "Informasi Model & Dataset"]
-)
-
-# Fungsi aman memuat 3 model pkl sekaligus
-@st.cache_resource
-def load_all_models():
-    models_dict = {'XGBoost': None, 'Random Forest': None, 'SVM': None}
-    
-    # Load XGBoost
-    if os.path.exists("model_xgboost.pkl"):
-        try:
-            with open("model_xgboost.pkl", "rb") as f:
-                models_dict['XGBoost'] = pickle.load(f)
-        except: pass
-        
-    # Load Random Forest
-    if os.path.exists("model_random_forest.pkl"):
-        try:
-            with open("model_random_forest.pkl", "rb") as f:
-                models_dict['Random Forest'] = pickle.load(f)
-        except: pass
-        
-    # Load SVM
-    if os.path.exists("model_svm.pkl"):
-        try:
-            with open("model_svm.pkl", "rb") as f:
-                models_dict['SVM'] = pickle.load(f)
-        except: pass
-        
-    return models_dict
-
-available_models = load_all_models()
-
-# Tambahkan dropdown pilihan model di sidebar khusus menu Prediksi
-selected_model_name = "XGBoost" # default
-if menu == "Prediksi Tingkat Keparahan":
-    st.sidebar.write("---")
-    st.sidebar.subheader("🧠 Pengaturan Otak AI")
-    selected_model_name = st.sidebar.selectbox(
-        "Pilih Model Klasifikasi:",
-        ["XGBoost", "Random Forest", "SVM"]
-    )
-    st.sidebar.info(f"Sistem dikonfigurasi menggunakan: **{selected_model_name}**.")
-
-# ==========================================
-# MENU 1: DASHBOARD & STATISTIK
-# ==========================================
-if menu == "Dashboard & Statistik":
-    st.markdown('<div class="main-title">✈️ Sistem Analisis & Prediksi Risiko Penerbangan</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Universitas Gunadarma - Fakultas Teknologi Industri</div>', unsafe_allow_html=True)
-    
-    st.subheader("Ringkasan Data Historis Insiden")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown('<div class="metric-box"><h4>Total Insiden Historis</h4><p style="font-size: 24px; font-weight: bold; color: #1E3A8A;">80,000+ Records</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="metric-box"><h4>Fitur Prediktor Utama</h4><p style="font-size: 24px; font-weight: bold; color: #10B981;">5 Dimensi Kritis</p></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="metric-box"><h4>Algoritma Komparasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B;">XGBoost vs RF vs SVM</p></div>', unsafe_allow_html=True)
-
-    st.write("")
-    st.info("""
-        **Deskripsi Sistem:**
-        Sistem ini dibangun untuk memodelkan risiko dan memprediksi tingkat keparahan (*Severity*) insiden penerbangan berdasarkan data historis dari *National Transportation Safety Board (NTSB)* menggunakan komparasi 3 algoritma *Machine Learning*.
-    """)
 
 # ==========================================
 # MENU 2: PREDIKSI TINGKAT KEPARAHAN
@@ -270,7 +272,7 @@ elif menu == "Prediksi Tingkat Keparahan":
         active_model = available_models[selected_model_name]
         result = "Unknown"
         
-        # JIKA FILE MODEL PKL TIDAK ADA (MODE SIMULASI JALAN)
+        # JIKA FILE MODEL PKL TIDAK ADA (MODE SIMULASI)
         if active_model is None:
             st.warning(f"⚠️ Berkas `model_{selected_model_name.lower().replace(' ', '_')}.pkl` tidak ditemukan. Menjalankan mesin simulasi akademis:")
             
@@ -285,7 +287,7 @@ elif menu == "Prediksi Tingkat Keparahan":
                 proba = 94.15 - model_factor
                 st.success(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** (Confidence Score: {proba:.2f}%)")
                 
-        # JIKA FILE MODEL PKL ADA (PROSES REAL MACHINE LEARNING)
+        # JIKA FILE MODEL PKL ADA (REAL ML MODEL)
         else:
             try:
                 if hasattr(active_model, 'feature_names_in_'):
@@ -294,21 +296,19 @@ elif menu == "Prediksi Tingkat Keparahan":
                     
                     if "Number.of.Engines" in input_encoded.columns:
                         input_encoded["Number.of.Engines"] = num_engines
+                    if "Number of Engines" in input_encoded.columns:
+                        input_encoded["Number of Engines"] = num_engines
                         
                     col_weather = f"Weather Condition_{weather}"
                     col_phase = f"Broad Phase of Flight_{phase}"
                     col_damage = f"Aircraft Damage_{damage}"
                     col_engine = f"Engine Type_{engine_type}"
                     
-                    if "Number of Engines" in input_encoded.columns:
-                        input_encoded["Number of Engines"] = num_engines
-                    
                     for col in [col_weather, col_phase, col_damage, col_engine]:
                         if col in input_encoded.columns:
                             input_encoded[col] = 1
                     
                     prediction = active_model.predict(input_encoded)
-                    
                     target_labels = {0: "Incident", 1: "Non-Fatal", 2: "Fatal"}
                     result = target_labels.get(prediction[0], "Unknown")
                     
@@ -330,20 +330,15 @@ elif menu == "Prediksi Tingkat Keparahan":
             except Exception as e:
                 st.error(f"❌ Gagal memproses ke model riil: {str(e)}")
 
-        # ==========================================
-        # MODUL EXPLAINABLE AI (PENJELASAN DINAMIS)
-        # ==========================================
+        # EXPLAINABLE AI SECTION
         with st.expander("🔍 **Lihat Penjelasan & Analisis Faktor Risiko (Dinamis)**", expanded=True):
             st.markdown("### 💡 Interpretasi Faktor Input terhadap Prediksi:")
             
-            # 1. Analisis Cuaca
             weather_dict = {
                 "VMC": "☀️ **Cuaca Cerah (VMC):** Menurunkan risiko fatalitas secara signifikan. Visibilitas penerbangan visual yang jernih memberikan ruang bagi pilot untuk bermanuver dan melakukan *forced landing* secara terkontrol.",
                 "IMC": "🌧️ **Cuaca Buruk/Instrumen (IMC):** Meningkatkan risiko kecelakaan fatal. Visibilitas terbatas memaksa navigasi bergantung penuh pada instrumen, meningkatkan potensi disorientasi spasial.",
                 "UNK": "❓ **Cuaca Tidak Diketahui (UNK):** Faktor lingkungan tidak dapat dikuantifikasi secara pasti dalam inferensi ini."
             }
-            
-            # 2. Analisis Fase Penerbangan
             phase_dict = {
                 "TAKEOFF": "🛫 **Fase Lepas Landas (TAKEOFF):** Risiko insiden tinggi karena daya mesin maksimal, namun kedekatan dengan area pendaratan darurat bandara dapat membantu mitigasi korban jiwa.",
                 "CLIMB": "🧗 **Fase Menanjak (CLIMB):** Pesawat berada dalam transisi ke Ketinggian Jelajah; gangguan tenaga mesin pada fase ini menuntut penanganan darurat yang cepat.",
@@ -357,17 +352,13 @@ elif menu == "Prediksi Tingkat Keparahan":
                 "STANDING": "🅿️ **Fase Parkir/Berhenti (STANDING):** Pesawat berada di posisi diam; potensi fatalitas korban jiwa hampir tidak ada.",
                 "UNKNOWN": "❓ **Fase Tidak Diketahui (UNKNOWN):** Informasi fase operasional tidak tercatat pada dataset historis."
             }
-            
-            # 3. Analisis Kerusakan Pesawat
             damage_dict = {
                 "Substantial": "🔧 **Kerusakan Substantial:** Struktur utama pesawat mengalami kerusakan fisik berlebih, namun integritas kabin/kokpit umumnya masih mampu melindungi penumpang dari benturan fatal.",
                 "Destroyed": "💥 **Pesawat Hancur (Destroyed):** Energi benturan sangat besar hingga menghancurkan struktur utama pesawat. Ini merupakan faktor pendorong paling kuat terhadap hasil keparahan **Fatal**.",
                 "Minor": "🛠️ **Kerusakan Minor:** Kerusakan fisik ringan pada kompartemen pesawat; risiko keselamatan jiwa penumpang sangat rendah.",
                 "None": "✅ **Tidak Ada Kerusakan (None):** Pesawat dalam kondisi utuh, indikator keparahan cenderung **Non-Fatal / Incident**.",
-                "Unknown": "❓ **Tingkat Kerusakan Tidak Diketahui:** Dampak struktural tidak dapat diproyeksikan."
+                "Unknown": "❓ **Tingkat Kerusakan Tidak Diketahui:** Dampak structural tidak dapat diproyeksikan."
             }
-            
-            # 4. Analisis Tipe Mesin
             engine_dict = {
                 "Reciprocating": "🛩️ **Mesin Piston (Reciprocating):** Umum digunakan pada pesawat penerbangan umum (*general aviation*) berkuran kecil. Kecepatan jelajah dan kecepatan benturan yang lebih rendah menekan risiko keparahan fatal.",
                 "Turbo Prop": "🌀 **Mesin Turboprop:** Digunakan pada pesawat regional/baling-baling; memiliki tingkat keandalan mekanis menengah-tinggi.",
@@ -377,13 +368,11 @@ elif menu == "Prediksi Tingkat Keparahan":
                 "Unknown": "❓ **Tipe Mesin Tidak Diketahui:** Karakteristik propulsi tidak dapat diidentifikasi secara pasti."
             }
             
-            # Tampilkan Penjelasan Parameter Utama
             st.markdown(f"- {weather_dict.get(weather, '')}")
             st.markdown(f"- {phase_dict.get(phase, '')}")
             st.markdown(f"- {damage_dict.get(damage, '')}")
             st.markdown(f"- {engine_dict.get(engine_type, '')}")
             
-            # 5. Analisis Jumlah Mesin (Dinamis Berdasarkan Angka)
             if num_engines == 1:
                 st.markdown("- 1️⃣ **Jumlah Mesin (1 Unit):** Pesawat mesin tunggal tidak memiliki redundansi tenaga. Jika terjadi kegagalan mesin, pesawat harus segera melakukan pendaratan darurat (*gliding/forced landing*).")
             elif num_engines == 2:
@@ -393,7 +382,6 @@ elif menu == "Prediksi Tingkat Keparahan":
             
             st.write("---")
             
-            # Kesimpulan Otomatis Berdasarkan Output Hasil Prediksi
             if result == "Fatal":
                 st.error("⚠️ **Rangkuman Evaluasi Model:** Kombinasi faktor terdeteksi memiliki tingkat risiko keselamatan kritis (didominasi oleh tingkat kerusakan fisik pesawat dan/atau kondisi cuaca terobstruksi).")
             elif result == "Non-Fatal":
@@ -415,7 +403,7 @@ elif menu == "Informasi Model & Dataset":
         **Hasil Evaluasi Kinerja Klasifikasi (Komparasi 3 Model):**
         * **Akurasi Random Forest:** 85.57%
         * **Akurasi SVM (Support Vector Machine):** 85.63%
-        * **Akurasi XGBoost:** 85.60% *(Dipilih sebagai Model Utama Aplikasi karena performa tertinggi)*
+        * **Akurasi XGBoost:** 85.60% *(Dipilih sebagai Model Utama Aplikasi karena performa komputasi terbaik)*
         """)
     with tab2:
         st.markdown("""
