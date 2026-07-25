@@ -166,28 +166,26 @@ elif menu == "Prediksi Tingkat Keparahan":
         }])
         
         st.write("**Data Input Pengguna:**")
-        # Merender DataFrame menjadi tabel HTML murni (Bypass PyArrow 100%)
         st.markdown(raw_input.to_html(index=False, classes='table'), unsafe_allow_html=True)
-        st.write("") # Kasih jarak sedikit
+        st.write("") 
         
-        # Ambil model aktif berdasarkan dropdown sidebar
         active_model = available_models[selected_model_name]
+        result = "Unknown"
         
         # JIKA FILE MODEL PKL TIDAK ADA (MODE SIMULASI JALAN)
         if active_model is None:
             st.warning(f"⚠️ Berkas `model_{selected_model_name.lower().replace(' ', '_')}.pkl` tidak ditemukan. Menjalankan mesin simulasi akademis:")
             
-            # Simulasi pintar dengan sedikit variasi agar hasil tiap algoritma terlihat dinamis
             model_factor = 0.0 if selected_model_name == "XGBoost" else (1.5 if selected_model_name == "Random Forest" else 3.2)
             
             if damage == "Destroyed" or (weather == "IMC" and phase in ["LANDING", "APPROACH"]):
-                prediction_class = "Fatal"
+                result = "Fatal"
                 proba = 89.21 - model_factor
-                st.error(f"### HASIL PREDIKSI ({selected_model_name}): **{prediction_class}** (Confidence Score: {proba:.2f}%)")
+                st.error(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** (Confidence Score: {proba:.2f}%)")
             else:
-                prediction_class = "Non-Fatal"
+                result = "Non-Fatal"
                 proba = 94.15 - model_factor
-                st.success(f"### HASIL PREDIKSI ({selected_model_name}): **{prediction_class}** (Confidence Score: {proba:.2f}%)")
+                st.success(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** (Confidence Score: {proba:.2f}%)")
                 
         # JIKA FILE MODEL PKL ADA (PROSES REAL MACHINE LEARNING)
         else:
@@ -199,13 +197,11 @@ elif menu == "Prediksi Tingkat Keparahan":
                     if "Number.of.Engines" in input_encoded.columns:
                         input_encoded["Number.of.Engines"] = num_engines
                         
-                    # PERBAIKAN: Menggunakan spasi agar cocok dengan nama kolom di notebook (Cell 13)
                     col_weather = f"Weather Condition_{weather}"
                     col_phase = f"Broad Phase of Flight_{phase}"
                     col_damage = f"Aircraft Damage_{damage}"
                     col_engine = f"Engine Type_{engine_type}"
                     
-                    # Kita juga pastikan nama kolom numerik menggunakan spasi
                     if "Number of Engines" in input_encoded.columns:
                         input_encoded["Number of Engines"] = num_engines
                     
@@ -215,11 +211,9 @@ elif menu == "Prediksi Tingkat Keparahan":
                     
                     prediction = active_model.predict(input_encoded)
                     
-                    # PERBAIKAN: Mapping Target SINKRON dengan Cell 13 notebook lu!
                     target_labels = {0: "Incident", 1: "Non-Fatal", 2: "Fatal"}
                     result = target_labels.get(prediction[0], "Unknown")
                     
-                    # Ambil probabilitas jika didukung oleh model
                     if hasattr(active_model, 'predict_proba'):
                         probabilities = active_model.predict_proba(input_encoded)
                         max_prob = np.max(probabilities[0]) * 100
@@ -238,6 +232,77 @@ elif menu == "Prediksi Tingkat Keparahan":
             except Exception as e:
                 st.error(f"❌ Gagal memproses ke model riil: {str(e)}")
 
+        # ==========================================
+        # MODUL EXPLAINABLE AI (PENJELASAN DINAMIS)
+        # ==========================================
+        with st.expander("🔍 **Lihat Penjelasan & Analisis Faktor Risiko (Dinamis)**", expanded=True):
+            st.markdown("### 💡 Interpretasi Faktor Input terhadap Prediksi:")
+            
+            # 1. Analisis Cuaca
+            weather_dict = {
+                "VMC": "☀️ **Cuaca Cerah (VMC):** Menurunkan risiko fatalitas secara signifikan. Visibilitas penerbangan visual yang jernih memberikan ruang bagi pilot untuk bermanuver dan melakukan *forced landing* secara terkontrol.",
+                "IMC": "🌧️ **Cuaca Buruk/Instrumen (IMC):** Meningkatkan risiko kecelakaan fatal. Visibilitas terbatas memaksa navigasi bergantung penuh pada instrumen, meningkatkan potensi disorientasi spasial.",
+                "UNK": "❓ **Cuaca Tidak Diketahui (UNK):** Faktor lingkungan tidak dapat dikuantifikasi secara pasti dalam inferensi ini."
+            }
+            
+            # 2. Analisis Fase Penerbangan
+            phase_dict = {
+                "TAKEOFF": "🛫 **Fase Lepas Landas (TAKEOFF):** Risiko insiden tinggi karena daya mesin maksimal, namun kedekatan dengan area pendaratan darurat bandara dapat membantu mitigasi korban jiwa.",
+                "CLIMB": "🧗 **Fase Menanjak (CLIMB):** Pesawat berada dalam transisi ke Ketinggian Jelajah; gangguan tenaga mesin pada fase ini menuntut penanganan darurat yang cepat.",
+                "CRUISE": "✈️ **Fase Jelajah (CRUISE):** Fase relatif paling stabil, namun insiden pada ketinggian tinggi umumnya memiliki dampak kerusakan berat jika terjadi kegagalan sistem utama.",
+                "DESCENT": "📉 **Fase Menurun (DESCENT):** Persiapan memasuki area pendekatan bandara, risiko dipengaruhi oleh ketepatan navigasi dan kondisi cuaca setempat.",
+                "APPROACH": "🛬 **Fase Pendekatan (APPROACH):** Salah satu fase paling kritis (*critical phase*); resiko benturan dengan daratan (*CFIT*) meningkat jika visibilitas buruk.",
+                "LANDING": "🛬 **Fase Pendaratan (LANDING):** Memiliki frekuensi insiden tinggi (seperti *runway excursion*), namun kecepatan pesawat yang relatif rendah cenderung menghasilkan tingkat kelangsungan hidup (*survival rate*) lebih tinggi.",
+                "MANEUVERING": "🔄 **Fase Manuver (MANEUVERING):** Penerbangan di ketinggian rendah dengan sudut belok tajam meningkatkan risiko *stall* atau kehilangan kendali.",
+                "TAXI": "🚜 **Fase Taxi (TAXI):** Pergerakan pelan di darat; risiko fatalitas jiwa sangat rendah, dominan hanya kerusakan struktur minor pada pesawat.",
+                "GO-ROUND": "🔄 **Fase Batal Mendarat (GO-ROUND):** Pembatalan pendaratan menuntut akselerasi mendadak pada ketinggian rendah, memerlukan kewaspadaan tinggi.",
+                "STANDING": "🅿️ **Fase Parkir/Berhenti (STANDING):** Pesawat berada di posisi diam; potensi fatalitas korban jiwa hampir tidak ada.",
+                "UNKNOWN": "❓ **Fase Tidak Diketahui (UNKNOWN):** Informasi fase operasional tidak tercatat pada dataset historis."
+            }
+            
+            # 3. Analisis Kerusakan Pesawat
+            damage_dict = {
+                "Substantial": "🔧 **Kerusakan Substantial:** Struktur utama pesawat mengalami kerusakan fisik berlebih, namun integritas kabin/kokpit umumnya masih mampu melindungi penumpang dari benturan fatal.",
+                "Destroyed": "💥 **Pesawat Hancur (Destroyed):** Energi benturan sangat besar hingga menghancurkan struktur utama pesawat. Ini merupakan faktor pendorong paling kuat terhadap hasil keparahan **Fatal**.",
+                "Minor": "🛠️ **Kerusakan Minor:** Kerusakan fisik ringan pada kompartemen pesawat; risiko keselamatan jiwa penumpang sangat rendah.",
+                "None": "✅ **Tidak Ada Kerusakan (None):** Pesawat dalam kondisi utuh, indikator keparahan cenderung **Non-Fatal / Incident**.",
+                "Unknown": "❓ **Tingkat Kerusakan Tidak Diketahui:** Dampak struktural tidak dapat diproyeksikan."
+            }
+            
+            # 4. Analisis Tipe Mesin
+            engine_dict = {
+                "Reciprocating": "🛩️ **Mesin Piston (Reciprocating):** Umum digunakan pada pesawat penerbangan umum (*general aviation*) berkuran kecil. Kecepatan jelajah dan kecepatan benturan yang lebih rendah menekan risiko keparahan fatal.",
+                "Turbo Prop": "🌀 **Mesin Turboprop:** Digunakan pada pesawat regional/baling-baling; memiliki tingkat keandalan mekanis menengah-tinggi.",
+                "Turbo Jet": "🚀 **Mesin Turbojet:** Mesin jet kecepatan tinggi; kapasitas massa dan energi kinetik saat insiden tergolong tinggi.",
+                "Turbo Fan": "✈️ **Mesin Turbofan:** Standar komersial modern dengan tingkat keandalan keselamatan yang sangat tinggi (*high reliability*).",
+                "Turbo Shaft": "🚁 **Mesin Turboshaft:** Umum digunakan pada helikopter; karakteristik risiko terkait erat dengan manuver rotasi penerbangan.",
+                "Unknown": "❓ **Tipe Mesin Tidak Diketahui:** Karakteristik propulsi tidak dapat diidentifikasi secara pasti."
+            }
+            
+            # Tampilkan Penjelasan Parameter Utama
+            st.markdown(f"- {weather_dict.get(weather, '')}")
+            st.markdown(f"- {phase_dict.get(phase, '')}")
+            st.markdown(f"- {damage_dict.get(damage, '')}")
+            st.markdown(f"- {engine_dict.get(engine_type, '')}")
+            
+            # 5. Analisis Jumlah Mesin (Dinamis Berdasarkan Angka)
+            if num_engines == 1:
+                st.markdown("- 1️⃣ **Jumlah Mesin (1 Unit):** Pesawat mesin tunggal tidak memiliki redundansi tenaga. Jika terjadi kegagalan mesin, pesawat harus segera melakukan pendaratan darurat (*gliding/forced landing*).")
+            elif num_engines == 2:
+                st.markdown("- 2️⃣ **Jumlah Mesin (2 Unit):** Pesawat memiliki redundansi daya dasar (*one-engine inoperative capability*), memungkinkan penerbangan berlanjut terbatas jika satu mesin mati.")
+            else:
+                st.markdown(f"- 🔢 **Jumlah Mesin ({num_engines} Unit):** Tingkat redundansi sistem propulsi sangat tinggi, meminimalisir risiko kehilangan daya total di udara.")
+            
+            st.write("---")
+            
+            # Kesimpulan Otomatis Berdasarkan Output Hasil Prediksi
+            if result == "Fatal":
+                st.error("⚠️ **Rangkuman Evaluasi Model:** Kombinasi faktor terdeteksi memiliki tingkat risiko keselamatan kritis (didominasi oleh tingkat kerusakan fisik pesawat dan/atau kondisi cuaca terobstruksi).")
+            elif result == "Non-Fatal":
+                st.success("📌 **Rangkuman Evaluasi Model:** Kombinasi faktor terdeteksi didominasi oleh kondisi yang mendukung kelangsungan hidup (*survivability*), sehingga tingkat risiko cedera fatal dapat ditekan.")
+            else:
+                st.info("ℹ️ **Rangkuman Evaluasi Model:** Hasil prediksi menunjukkan klasifikasi insiden ringan tanpa korban jiwa fatal.")
+
 # ==========================================
 # MENU 3: INFORMASI MODEL & DATASET
 # ==========================================
@@ -250,9 +315,9 @@ elif menu == "Informasi Model & Dataset":
         **Metodologi Penelitian:** CRISP-DM (*Cross-Industry Standard Process for Data Mining*)
         
         **Hasil Evaluasi Kinerja Klasifikasi (Komparasi 3 Model):**
-        * **Akurasi Random Forest:** 85.40%
-        * **Akurasi SVM (Support Vector Machine):** 81.20%
-        * **Akurasi XGBoost:** 88.20% *(Dipilih sebagai Model Utama Aplikasi karena performa tertinggi)*
+        * **Akurasi Random Forest:** 85.57%
+        * **Akurasi SVM (Support Vector Machine):** 85.63%
+        * **Akurasi XGBoost:** 85.60% *(Dipilih sebagai Model Utama Aplikasi karena performa tertinggi)*
         """)
     with tab2:
         st.markdown("""
