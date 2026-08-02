@@ -50,7 +50,7 @@ st.markdown("""
 # ==========================================
 @st.cache_resource
 def load_all_artifacts():
-    models_dict = {'XGBoost': None, 'Random Forest': None, 'SVM': None}
+    models_dict = {'XGBoost': None, 'SVM': None}
     encoder = None
     
     # Load XGBoost
@@ -58,13 +58,6 @@ def load_all_artifacts():
         try:
             with open("model_xgboost.pkl", "rb") as f:
                 models_dict['XGBoost'] = pickle.load(f)
-        except Exception: pass
-        
-    # Load Random Forest
-    if os.path.exists("model_random_forest.pkl"):
-        try:
-            with open("model_random_forest.pkl", "rb") as f:
-                models_dict['Random Forest'] = pickle.load(f)
         except Exception: pass
         
     # Load SVM
@@ -103,7 +96,7 @@ if menu == "Prediksi Tingkat Keparahan":
     st.sidebar.subheader("🧠 Pengaturan Otak AI")
     selected_model_name = st.sidebar.selectbox(
         "Pilih Model Klasifikasi:",
-        ["XGBoost", "Random Forest", "SVM"]
+        ["XGBoost", "SVM"]
     )
     st.sidebar.info(f"Sistem dikonfigurasi menggunakan: **{selected_model_name}**.")
 
@@ -121,12 +114,12 @@ if menu == "Dashboard & Statistik":
     with col2:
         st.markdown('<div class="metric-box"><h4>Fitur Prediktor Utama</h4><p style="font-size: 24px; font-weight: bold; color: #10B981; margin:0;">5 Dimensi Kritis</p></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown('<div class="metric-box"><h4>Algoritma Komparasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B; margin:0;">XGBoost vs RF vs SVM</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="metric-box"><h4>Algoritma Komparasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B; margin:0;">XGBoost vs SVM</p></div>', unsafe_allow_html=True)
 
     st.write("")
     st.info("""
         **Deskripsi Sistem:**
-        Sistem ini dibangun untuk memodelkan risiko dan memprediksi tingkat keparahan (*Severity*) insiden penerbangan berdasarkan data historis dari *National Transportation Safety Board (NTSB)* menggunakan komparasi 3 algoritma *Machine Learning*.
+        Sistem ini dibangun untuk memodelkan risiko dan memprediksi tingkat keparahan (*Severity*) insiden penerbangan berdasarkan data historis menggunakan komparasi algoritma *Ensemble* (XGBoost) dan *Hyperplane* (SVM).
     """)
     
     st.write("---")
@@ -155,8 +148,8 @@ if menu == "Dashboard & Statistik":
     with chart_col2:
         st.markdown("##### ⚡ Komparasi Kinerja Algoritma Machine Learning")
         model_metrics = pd.DataFrame({
-            'Model': ['XGBoost', 'Random Forest', 'SVM'],
-            'Akurasi (%)': [85.60, 85.57, 85.63]
+            'Model': ['XGBoost', 'SVM'],
+            'Akurasi (%)': [84.55, 84.84]
         })
         fig_bar = px.bar(
             model_metrics, 
@@ -164,7 +157,7 @@ if menu == "Dashboard & Statistik":
             y='Akurasi (%)', 
             text='Akurasi (%)',
             color='Model',
-            color_discrete_sequence=['#1E3A8A', '#059669', '#D97706']
+            color_discrete_sequence=['#1E3A8A', '#D97706']
         )
         fig_bar.update_yaxes(range=[80, 90])
         fig_bar.update_layout(margin=dict(t=20, b=20, l=10, r=10), height=300, showlegend=False)
@@ -346,7 +339,7 @@ elif menu == "Prediksi Tingkat Keparahan":
                 "Turbo Jet": "🚀 **Mesin Turbojet:** Mesin jet kecepatan tinggi; kapasitas massa dan energi kinetik saat insiden tergolong tinggi.",
                 "Turbo Fan": "✈️ **Mesin Turbofan:** Standar komersial modern dengan tingkat keandalan keselamatan yang sangat tinggi (*high reliability*).",
                 "Turbo Shaft": "🚁 **Mesin Turboshaft:** Umum digunakan pada helikopter; karakteristik risiko terkait erat dengan manuver rotasi penerbangan.",
-                "Unknown": "❓ **Tipe Mesin Tidak Diketahui:** Karakteristik propulsi tidak dapat diidentifikasi secara pasti."
+                "Unknown": "❓ **Tingkat Mesin Tidak Diketahui:** Karakteristik propulsi tidak dapat diidentifikasi secara pasti."
             }
             
             st.markdown(f"- {weather_dict.get(weather, '')}")
@@ -372,10 +365,9 @@ elif menu == "Informasi Model & Dataset":
         st.markdown("""
         **Metodologi Penelitian:** CRISP-DM (*Cross-Industry Standard Process for Data Mining*)
         
-        **Hasil Evaluasi Kinerja Klasifikasi (Komparasi 3 Model):**
-        * **Akurasi Random Forest:** 85.57%
-        * **Akurasi SVM (Support Vector Machine):** 85.63%
-        * **Akurasi XGBoost:** 85.60% *(Dipilih sebagai Model Utama Aplikasi karena performa komputasi terbaik)*
+        **Hasil Evaluasi Kinerja Klasifikasi (Komparasi Model):**
+        * **Akurasi XGBoost:** 84.55%
+        * **Akurasi SVM (Support Vector Machine):** 84.84%
         """)
     with tab2:
         st.markdown("""
