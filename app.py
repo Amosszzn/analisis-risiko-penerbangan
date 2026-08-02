@@ -264,7 +264,8 @@ elif menu == "Prediksi Tingkat Keparahan":
         
         st.write("**Data Input Pengguna:**")
         st.markdown(raw_input.to_html(index=False, classes='table'), unsafe_allow_html=True)
-        st.write("") 
+        st.write("")
+        available_models, encoder = load_all_artifacts() 
         
         active_model = available_models[selected_model_name]
         
