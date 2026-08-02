@@ -53,30 +53,25 @@ def load_all_artifacts():
     models_dict = {'XGBoost': None, 'SVM': None}
     encoder = None
     
-    # Load XGBoost
-    if os.path.exists("model_xgboost.pkl"):
-        try:
-            with open("model_xgboost.pkl", "rb") as f:
-                models_dict['XGBoost'] = pickle.load(f)
-        except Exception: pass
+    try:
+        with open("model_xgboost.pkl", "rb") as f:
+            models_dict['XGBoost'] = pickle.load(f)
+    except Exception as e:
+        st.error(f"Error XGBoost: {e}")
         
-    # Load SVM
-    if os.path.exists("model_svm.pkl"):
-        try:
-            with open("model_svm.pkl", "rb") as f:
-                models_dict['SVM'] = pickle.load(f)
-        except Exception: pass
+    try:
+        with open("model_svm.pkl", "rb") as f:
+            models_dict['SVM'] = pickle.load(f)
+    except Exception as e:
+        st.error(f"Error SVM: {e}")
 
-    # Load OneHotEncoder
-    if os.path.exists("encoder.pkl"):
-        try:
-            with open("encoder.pkl", "rb") as f:
-                encoder = pickle.load(f)
-        except Exception: pass
+    try:
+        with open("encoder.pkl", "rb") as f:
+            encoder = pickle.load(f)
+    except Exception as e:
+        st.error(f"Error Encoder: {e}")
         
     return models_dict, encoder
-
-available_models, encoder = load_all_artifacts()
 
 # ==========================================
 # 3. SIDEBAR NAVIGASI
