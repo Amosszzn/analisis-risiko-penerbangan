@@ -72,16 +72,18 @@ def load_all_artifacts():
 # ==========================================
 st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/f/f1/Gunadarma_University_Logo.png", width=100)
 st.sidebar.title("Navigasi Sistem")
+
+# Navigasi dipangkas menjadi 2 menu utama
 menu = st.sidebar.radio(
     "Pilih Halaman:",
-    ["Dashboard & Statistik", "Prediksi Tingkat Keparahan", "Informasi Model & Dataset"],
+    ["Dashboard & Informasi Model", "Prediksi Tingkat Keparahan"],
     key="main_navigation_menu"
 )
 
 # ==========================================
-# MENU 1: DASHBOARD & STATISTIK
+# MENU 1: DASHBOARD & INFORMASI MODEL
 # ==========================================
-if menu == "Dashboard & Statistik":
+if menu == "Dashboard & Informasi Model":
     st.markdown('<div class="main-title">✈️ Sistem Analisis & Prediksi Risiko Penerbangan</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">Universitas Gunadarma - Fakultas Teknologi Industri</div>', unsafe_allow_html=True)
     
@@ -192,6 +194,29 @@ if menu == "Dashboard & Statistik":
             st.error("⚠️ Fase ini tergolong berisiko tinggi (*High Risk Phase*).")
         else:
             st.success("✅ Fase ini memiliki *survival rate* relatif tinggi.")
+
+    # INTEGRASI INFORMASI MODEL & DATASET (Dahulunya Halaman 3)
+    st.write("---")
+    with st.expander("📚 **Detail Metodologi Riset & Atribut Dataset (Bab 3)**", expanded=False):
+        col_m1, col_m2 = st.columns(2)
+        
+        with col_m1:
+            st.markdown("""
+            ##### ⚙️ Spesifikasi Riset & Model
+            * **Metodologi Penelitian:** CRISP-DM (*Cross-Industry Standard Process for Data Mining*)
+            * **Algoritma Utama:** XGBoost (*Extreme Gradient Boosting*)
+            * **Evaluasi Kinerja:** Akurasi Model **84,55%**
+            """)
+            
+        with col_m2:
+            st.markdown("""
+            ##### 📋 5 Atribut Prediktor Krusial (Bab 3.3)
+            1. `Weather Condition` (Kondisi Cuaca)
+            2. `Broad Phase of Flight` (Fase Penerbangan)
+            3. `Aircraft Damage` (Tingkat Kerusakan Pesawat)
+            4. `Number of Engines` (Jumlah Mesin)
+            5. `Engine Type` (Tipe Mesin Pesawat)
+            """)
 
 # ==========================================
 # MENU 2: PREDIKSI TINGKAT KEPARAHAN
@@ -331,28 +356,3 @@ elif menu == "Prediksi Tingkat Keparahan":
                 st.markdown("- 2️⃣ **Jumlah Mesin (2 Unit):** Pesawat memiliki redundansi daya dasar (*one-engine inoperative capability*), memungkinkan penerbangan berlanjut terbatas jika satu mesin mati.")
             else:
                 st.markdown(f"- 🔢 **Jumlah Mesin ({num_engines} Unit):** Tingkat redundansi sistem propulsi sangat tinggi, meminimalisir risiko kehilangan daya total di udara.")
-
-# ==========================================
-# MENU 3: INFORMASI MODEL & DATASET
-# ==========================================
-elif menu == "Informasi Model & Dataset":
-    st.subheader("📚 Detail Akademis Riset")
-    tab1, tab2 = st.tabs(["Spesifikasi Model", "Atribut Dataset (Bab 3.3)"])
-    
-    with tab1:
-        st.markdown("""
-        **Metodologi Penelitian:** CRISP-DM (*Cross-Industry Standard Process for Data Mining*)
-        
-        **Hasil Evaluasi Kinerja Klasifikasi:**
-        * **Algoritma Utama:** XGBoost (*Extreme Gradient Boosting*)
-        * **Akurasi XGBoost:** 84.55%
-        """)
-    with tab2:
-        st.markdown("""
-        **5 Atribut Prediktor Krusial (Hasil Seleksi Fitur):**
-        1. `Weather Condition`
-        2. `Broad Phase of Flight`
-        3. `Aircraft Damage`
-        4. `Number of Engines`
-        5. `Engine Type`
-        """)
