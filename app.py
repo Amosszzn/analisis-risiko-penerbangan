@@ -42,6 +42,15 @@ st.markdown("""
         font-size: 14px;
         color: #6B7280;
     }
+    .best-model-badge {
+        background-color: #10B981;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 15px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -50,14 +59,20 @@ st.markdown("""
 # ==========================================
 @st.cache_resource
 def load_all_artifacts():
-    model_xgboost = None
+    models_dict = {'XGBoost': None, 'SVM': None}
     encoder = None
     
     try:
         with open("model_xgboost.pkl", "rb") as f:
-            model_xgboost = pickle.load(f)
+            models_dict['XGBoost'] = pickle.load(f)
     except Exception as e:
         st.error(f"Error XGBoost: {e}")
+        
+    try:
+        with open("model_svm.pkl", "rb") as f:
+            models_dict['SVM'] = pickle.load(f)
+    except Exception as e:
+        st.error(f"Error SVM: {e}")
 
     try:
         with open("encoder.pkl", "rb") as f:
@@ -65,7 +80,7 @@ def load_all_artifacts():
     except Exception as e:
         st.error(f"Error Encoder: {e}")
         
-    return model_xgboost, encoder
+    return models_dict, encoder
 
 # ==========================================
 # 3. SIDEBAR NAVIGASI
@@ -78,12 +93,26 @@ menu = st.sidebar.radio(
     key="main_navigation_menu"
 )
 
+# Pengaturan Pilihan Model khusus di Menu Prediksi
+selected_model_name = "XGBoost" # Default
+if menu == "Prediksi Tingkat Keparahan":
+    st.sidebar.write("---")
+    st.sidebar.subheader("🧠 Pengaturan Otak AI")
+    selected_model_name = st.sidebar.selectbox(
+        "Pilih Model Klasifikasi:",
+        ["XGBoost", "SVM"]
+    )
+    st.sidebar.info(f"Sistem dikonfigurasi menggunakan: **{selected_model_name}**.")
+
 # ==========================================
 # MENU 1: DASHBOARD & STATISTIK
 # ==========================================
 if menu == "Dashboard & Statistik":
     st.markdown('<div class="main-title">✈️ Sistem Analisis & Prediksi Risiko Penerbangan</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">Universitas Gunadarma - Fakultas Teknologi Industri</div>', unsafe_allow_html=True)
+    
+    # Keterangan Model Terbaik
+    st.markdown('<div class="best-model-badge">🏆 XGBoost merupakan model terbaik di antara kedua model yang diuji.</div>', unsafe_allow_html=True)
     
     # Metric Cards Ringkasan
     col1, col2, col3 = st.columns(3)
@@ -92,12 +121,12 @@ if menu == "Dashboard & Statistik":
     with col2:
         st.markdown('<div class="metric-box"><h4>Fitur Prediktor Utama</h4><p style="font-size: 24px; font-weight: bold; color: #10B981; margin:0;">5 Dimensi Kritis</p></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown('<div class="metric-box"><h4>Algoritma Klasifikasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B; margin:0;">XGBoost</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="metric-box"><h4>Algoritma Komparasi</h4><p style="font-size: 24px; font-weight: bold; color: #F59E0B; margin:0;">XGBoost vs SVM</p></div>', unsafe_allow_html=True)
 
     st.write("")
     st.info("""
         **Deskripsi Sistem:**
-        Sistem ini dibangun untuk memodelkan risiko dan memprediksi tingkat keparahan (*Severity*) insiden penerbangan berdasarkan data historis menggunakan algoritma *Ensemble Machine Learning* (XGBoost).
+        Sistem ini dibangun untuk memodelkan risiko dan memprediksi tingkat keparahan (*Severity*) insiden penerbangan berdasarkan data historis menggunakan komparasi algoritma *Ensemble* (XGBoost) dan *Hyperplane* (SVM).
     """)
     
     st.write("---")
@@ -113,8 +142,8 @@ if menu == "Dashboard & Statistik":
             'Jumlah Insiden': [65000, 12000, 3000]
         })
         fig_donut = px.pie(
-            severity_data, 
-            values='Jumlah Insiden', 
+            severity_data,
+            values='Jumlah Insiden',
             names='Tingkat Keparahan',
             hole=0.5,
             color='Tingkat Keparahan',
@@ -124,20 +153,20 @@ if menu == "Dashboard & Statistik":
         st.plotly_chart(fig_donut, use_container_width=True)
 
     with chart_col2:
-        st.markdown("##### ⚡ Kinerja Model XGBoost")
+        st.markdown("##### ⚡ Komparasi Kinerja Algoritma Machine Learning")
         model_metrics = pd.DataFrame({
-            'Metrik': ['Akurasi XGBoost'],
-            'Nilai (%)': [84.55]
+            'Model': ['XGBoost', 'SVM'],
+            'Akurasi (%)': [84.55, 84.84]
         })
         fig_bar = px.bar(
-            model_metrics, 
-            x='Metrik', 
-            y='Nilai (%)', 
-            text='Nilai (%)',
-            color='Metrik',
-            color_discrete_sequence=['#1E3A8A']
+            model_metrics,
+            x='Model',
+            y='Akurasi (%)',
+            text='Akurasi (%)',
+            color='Model',
+            color_discrete_sequence=['#1E3A8A', '#D97706']
         )
-        fig_bar.update_yaxes(range=[0, 100])
+        fig_bar.update_yaxes(range=[80, 90])
         fig_bar.update_layout(margin=dict(t=20, b=20, l=10, r=10), height=300, showlegend=False)
         st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -166,9 +195,9 @@ if menu == "Dashboard & Statistik":
     })
 
     fig_phase = px.bar(
-        df_phase, 
-        x='Jumlah Kasus', 
-        y='Kategori', 
+        df_phase,
+        x='Jumlah Kasus',
+        y='Kategori',
         orientation='h',
         color='Kategori',
         text='Jumlah Kasus',
@@ -197,7 +226,11 @@ if menu == "Dashboard & Statistik":
 # MENU 2: PREDIKSI TINGKAT KEPARAHAN
 # ==========================================
 elif menu == "Prediksi Tingkat Keparahan":
-    st.subheader("🔮 Form Prediksi Risiko (XGBoost)")
+    st.subheader(f"🔮 Form Prediksi Risiko ({selected_model_name})")
+    
+    # Keterangan Model Terbaik di Form Prediksi
+    st.markdown('<div class="best-model-badge">🏆 Berdasarkan hasil pengujian, XGBoost merupakan model terbaik di antara model yang dikomparasi.</div>', unsafe_allow_html=True)
+    
     st.write("Silakan masukkan parameter kondisi penerbangan di bawah ini untuk menguji prediksi model:")
 
     col1, col2 = st.columns(2)
@@ -206,8 +239,8 @@ elif menu == "Prediksi Tingkat Keparahan":
         weather_display = st.selectbox(
             "1. Kondisi Cuaca (Weather Condition):",
             [
-                "VMC - Visual Meteorological Conditions (Cuaca Cerah / Visual)", 
-                "IMC - Instrument Meteorological Conditions (Cuaca Buruk / Instrumen)", 
+                "VMC - Visual Meteorological Conditions (Cuaca Cerah / Visual)",
+                "IMC - Instrument Meteorological Conditions (Cuaca Buruk / Instrumen)",
                 "UNK - Unknown (Tidak Diketahui)"
             ]
         )
@@ -248,36 +281,37 @@ elif menu == "Prediksi Tingkat Keparahan":
         st.write("**Data Input Pengguna:**")
         st.markdown(raw_input.to_html(index=False, classes='table'), unsafe_allow_html=True)
         st.write("")
+        available_models, encoder = load_all_artifacts()
         
-        model_xgboost, encoder = load_all_artifacts() 
+        active_model = available_models[selected_model_name]
         
         # PENGECEKAN KETERSEDIAAN MODEL & ENCODER
-        if model_xgboost is None or encoder is None:
-            st.error("⚠️ File `model_xgboost.pkl` atau `encoder.pkl` tidak ditemukan! Pastikan file berada di direktori aplikasi.")
+        if active_model is None or encoder is None:
+            st.error("⚠️ Model `.pkl` atau `encoder.pkl` tidak ditemukan! Pastikan file berada di direktori aplikasi.")
         else:
             try:
                 # Transformasi input menggunakan OneHotEncoder otomatis
                 X_input = encoder.transform(raw_input)
                 
                 # Melakukan Prediksi
-                prediction = model_xgboost.predict(X_input)
+                prediction = active_model.predict(X_input)
                 target_labels = {0: "Incident", 1: "Non-Fatal", 2: "Fatal"}
                 result = target_labels.get(prediction[0], "Unknown")
                 
-                # Hitung Probabilitas
+                # Hitung Probabilitas jika didukung
                 prob_text = ""
-                if hasattr(model_xgboost, 'predict_proba'):
-                    probabilities = model_xgboost.predict_proba(X_input)
+                if hasattr(active_model, 'predict_proba'):
+                    probabilities = active_model.predict_proba(X_input)
                     max_prob = np.max(probabilities[0]) * 100
                     prob_text = f"(Probabilitas: {max_prob:.2f}%)"
                 
                 # TAMPILKAN HASIL PREDIKSI
                 if result == "Fatal":
-                    st.error(f"### HASIL PREDIKSI (XGBoost): **{result}** {prob_text}")
+                    st.error(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
                 elif result == "Non-Fatal":
-                    st.success(f"### HASIL PREDIKSI (XGBoost): **{result}** {prob_text}")
+                    st.success(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
                 else:
-                    st.info(f"### HASIL PREDIKSI (XGBoost): **{result}** {prob_text}")
+                    st.info(f"### HASIL PREDIKSI ({selected_model_name}): **{result}** {prob_text}")
 
             except Exception as e:
                 st.error(f"❌ Terjadi kesalahan saat prediksi: {str(e)}")
@@ -343,9 +377,9 @@ elif menu == "Informasi Model & Dataset":
         st.markdown("""
         **Metodologi Penelitian:** CRISP-DM (*Cross-Industry Standard Process for Data Mining*)
         
-        **Hasil Evaluasi Kinerja Klasifikasi:**
-        * **Algoritma Utama:** XGBoost (*Extreme Gradient Boosting*)
+        **Hasil Evaluasi Kinerja Klasifikasi (Komparasi Model):**
         * **Akurasi XGBoost:** 84.55%
+        * **Akurasi SVM (Support Vector Machine):** 84.84%
         """)
     with tab2:
         st.markdown("""
